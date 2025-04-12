@@ -14,9 +14,9 @@ import SwiftUI
 /// 這個檔案展示了如何使用 OutlineGroupView 並實現拖放功能
 
 /// 展示使用方法的視圖
-public struct DemoView: View {
-    @State var items: [TreeItem]
-    @State var selectedItemIds = Set<TreeItem.ID>()
+public struct SideBarContentView: View {
+    @Binding var items: [TreeItem]
+    @Binding var selectedItemIds: Set<TreeItem.ID>
 
     public var body: some View {
         OutlineGroupView(items, children: \.children, selectedItemIds: $selectedItemIds) { item in
@@ -69,7 +69,7 @@ public struct DemoView: View {
     }
 }
 
-extension DemoView {
+extension SideBarContentView {
     /// 根據ID查找多個項目
     /// - Parameters:
     ///   - ids: 要查找的項目ID集合
@@ -297,7 +297,7 @@ public struct TreeItem: Identifiable, Hashable {
 }
 
 #Preview(traits: .fixedLayout(width: 300, height: 500)) {
-    var previewData: [TreeItem] = [
+    @Previewable @State var previewData: [TreeItem] = [
         TreeItem(name: "群組 1", children: [
             TreeItem(name: "項目 1-1", children: nil),
             TreeItem(name: "項目 1-2", children: [
@@ -325,6 +325,8 @@ public struct TreeItem: Identifiable, Hashable {
         TreeItem(name: "項目 4", children: nil),
     ]
 
+    @Previewable @State var selectedItemIds = Set<TreeItem.ID>()
+
     // 示例視圖預覽
-    DemoView(items: previewData)
+    SideBarContentView(items: $previewData, selectedItemIds: $selectedItemIds)
 }
