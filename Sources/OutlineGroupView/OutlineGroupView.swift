@@ -11,11 +11,9 @@ public struct OutlineGroupView<Item, RowContent>: NSViewRepresentable where Item
     // MARK: - 公開屬性
 
     /// 數據源
-    private let data: [Item]
-
+    let data: [Item]
     /// 子項目的鍵路徑
-    private let children: KeyPath<Item, [Item]?>
-
+    let children: KeyPath<Item, [Item]?>
     /// 行內容構建器
     let rowContent: (Item) -> RowContent
 
@@ -23,10 +21,7 @@ public struct OutlineGroupView<Item, RowContent>: NSViewRepresentable where Item
     private var dragDropConfig: DragDropConfiguration<Item>?
 
     /// 已選中項目的 ID 集合
-    private var selection: Binding<Set<Item.ID>>?
-
-    /// 選擇變化的回調
-    private var onSelectionChanged: (([Item]) -> Void)?
+    private var selectedItemIds: Binding<Set<Item.ID>>?
 
     // MARK: - 初始化方法
 
@@ -35,9 +30,10 @@ public struct OutlineGroupView<Item, RowContent>: NSViewRepresentable where Item
     ///   - data: 數據源
     ///   - children: 子項目的鍵路徑
     ///   - rowContent: 行內容構建器
-    public init(_ data: [Item], children: KeyPath<Item, [Item]?>, @ViewBuilder rowContent: @escaping (Item) -> RowContent) {
+    public init(_ data: [Item], children: KeyPath<Item, [Item]?>, selectedItemIds: Binding<Set<Item.ID>>? = nil, @ViewBuilder rowContent: @escaping (Item) -> RowContent) {
         self.data = data
         self.children = children
+        self.selectedItemIds = selectedItemIds
         self.rowContent = rowContent
     }
 
@@ -89,8 +85,7 @@ public struct OutlineGroupView<Item, RowContent>: NSViewRepresentable where Item
         context.coordinator.data = data
         context.coordinator.children = children
         context.coordinator.dragDropConfig = dragDropConfig
-        context.coordinator.selectionBinding = selection
-        context.coordinator.onSelectionChanged = onSelectionChanged
+        context.coordinator.selectionBinding = selectedItemIds
 
         // 設置選擇模式
         outlineView.allowsEmptySelection = true
@@ -100,15 +95,13 @@ public struct OutlineGroupView<Item, RowContent>: NSViewRepresentable where Item
         outlineView.reloadData()
 
         // 同步選中狀態
-        if let selection = selection {
+        if let selection = selectedItemIds {
             let selectedIds = selection.wrappedValue
             outlineView.deselectAll(nil)
 
             // 查找並選中 ID 相符的項目
             for rowIndex in 0 ..< outlineView.numberOfRows {
-                if let item = outlineView.item(atRow: rowIndex) as? Item,
-                   selectedIds.contains(item.id)
-                {
+                if let item = outlineView.item(atRow: rowIndex) as? Item, selectedIds.contains(item.id) {
                     // 使用非過時API
                     let rowIndexSet = IndexSet(integer: rowIndex)
                     outlineView.selectRowIndexes(rowIndexSet, byExtendingSelection: true)
@@ -121,7 +114,7 @@ public struct OutlineGroupView<Item, RowContent>: NSViewRepresentable where Item
     }
 
     public func makeCoordinator() -> Coordinator {
-        Coordinator(self, data: data, children: children, selectionBinding: selection, onSelectionChanged: onSelectionChanged)
+        Coordinator(self, data: data, children: children, selectionBinding: selectedItemIds)
     }
 
     // MARK: - 輔助方法
@@ -148,41 +141,4 @@ public extension OutlineGroupView {
         view.dragDropConfig = config
         return view
     }
-
-    /// 綁定選中項目
-    /// - Parameter selection: 選中項目 ID 的集合綁定
-    /// - Returns: 更新後的視圖
-    func selection(_ selection: Binding<Set<Item.ID>>) -> Self {
-        var view = self
-        view.selection = selection
-        return view
-    }
-}
-
-// MARK: - Preview
-
-struct PreviewItem: Identifiable {
-    let id = UUID()
-    let name: String
-    var children: [PreviewItem]?
-}
-
-#Preview {
-    @Previewable var previewData: [PreviewItem] = [
-        PreviewItem(name: "群組 1", children: [
-            PreviewItem(name: "項目 1-1", children: nil),
-            PreviewItem(name: "項目 1-2", children: [
-                PreviewItem(name: "子項目 1-2-1", children: nil),
-                PreviewItem(name: "子項目 1-2-2", children: nil),
-            ]),
-        ]),
-        PreviewItem(name: "群組 2", children: [
-            PreviewItem(name: "項目 2-1", children: nil),
-            PreviewItem(name: "項目 2-2", children: nil),
-        ]),
-        PreviewItem(name: "項目 3", children: nil),
-    ]
-
-    // 示例視圖預覽
-    OutlineGroupViewExample.DemoView()
 }

@@ -16,20 +16,17 @@ public extension OutlineGroupView {
         var children: KeyPath<Item, [Item]?>
         var dragDropConfig: DragDropConfiguration<Item>?
         var selectionBinding: Binding<Set<Item.ID>>?
-        var onSelectionChanged: (([Item]) -> Void)?
 
         init(
             _ parent: OutlineGroupView,
             data: [Item],
             children: KeyPath<Item, [Item]?>,
             selectionBinding: Binding<Set<Item.ID>>? = nil,
-            onSelectionChanged: (([Item]) -> Void)? = nil
         ) {
             self.parent = parent
             self.data = data
             self.children = children
             self.selectionBinding = selectionBinding
-            self.onSelectionChanged = onSelectionChanged
         }
 
         // MARK: - NSOutlineViewDataSource
@@ -80,9 +77,6 @@ public extension OutlineGroupView {
                 let selectedIds = Set(selectedItems.map { $0.id })
                 selectionBinding.wrappedValue = selectedIds
             }
-
-            // 觸發選擇變化回調
-            onSelectionChanged?(selectedItems)
         }
 
         // MARK: - 拖放支援
