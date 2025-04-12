@@ -60,7 +60,24 @@ enum OutlineGroupViewExample {
           .font(.headline)
           .padding()
 
-        OutlineGroupView(items, children: \.children) { item in
+        DraggableOutlineView(
+          items: $items,
+          children: \.children,
+          childrenSetter: { item, newChildren in
+            item.children = newChildren
+          },
+          selectedItemIds: $selectedItemIds,
+          onDragCompleted: { operationDescription in
+            lastDragOperation = operationDescription
+          },
+          onSelectionChanged: { selectedItems in
+            if selectedItems.isEmpty {
+              selectionInfo = "尚未選擇項目"
+            } else {
+              selectionInfo = "已選擇: " + selectedItems.map { $0.name }.joined(separator: ", ")
+            }
+          }
+        ) { item in
           HStack {
             Image(systemName: item.children == nil ? "doc" : "folder")
               .foregroundColor(item.children == nil ? .blue : .orange)
@@ -75,59 +92,6 @@ enum OutlineGroupViewExample {
             }
           }
           .padding(.vertical, 2)
-        }
-        .dragDropConfiguration(DragDropConfiguration(
-          validateDrop: { _, _ in
-            // 驗證拖放操作
-            // 額外邏輯可以加在這裡，例如防止項目被拖放到自己的子項目中
-            true
-          },
-          performDrop: { source, destination, index in
-            // 執行拖放並更新數據模型
-
-            // 檢查是否為多選拖放
-            let isMultiSelect = selectedItemIds.contains(source.id) && selectedItemIds.count > 1
-
-            if isMultiSelect {
-              // 處理多選拖放
-              if let updatedItems = performMultiDragDrop(
-                items: items,
-                sourceIds: selectedItemIds,
-                draggedItem: source,
-                destination: destination,
-                index: index
-              ) {
-                items = updatedItems
-                let selectedItemsStr = findItemsByIds(selectedItemIds, in: items)
-                  .map { $0.name }.joined(separator: "、")
-                lastDragOperation = "將多個項目「\(selectedItemsStr)」移動到\(destination == nil ? "根層級" : "「\(destination!.name)」")的索引 \(index)"
-                return true
-              }
-            } else {
-              // 處理單選拖放
-              if let updatedItems = performDragDrop(
-                items: items,
-                source: source,
-                destination: destination,
-                index: index
-              ) {
-                items = updatedItems
-                lastDragOperation = "將「\(source.name)」移動到\(destination == nil ? "根層級" : "「\(destination!.name)」")的索引 \(index)"
-                return true
-              }
-            }
-
-            return false
-          }
-        ))
-        .selectionMode(.multiple) // 設定為多選模式
-        .selection($selectedItemIds) // 綁定選中項目
-        .onSelectionChanged { selectedItems in
-          if selectedItems.isEmpty {
-            selectionInfo = "尚未選擇項目"
-          } else {
-            selectionInfo = "已選擇: " + selectedItems.map { $0.name }.joined(separator: ", ")
-          }
         }
         .frame(height: 300)
         .padding()
@@ -375,27 +339,27 @@ enum OutlineGroupViewExample {
 // MARK: - Preview
 
 struct PreviewItem: Identifiable {
-    let id = UUID()
-    let name: String
-    var children: [PreviewItem]?
+  let id = UUID()
+  let name: String
+  var children: [PreviewItem]?
 }
 
 #Preview {
-    @Previewable var previewData: [PreviewItem] = [
-        PreviewItem(name: "群組 1", children: [
-            PreviewItem(name: "項目 1-1", children: nil),
-            PreviewItem(name: "項目 1-2", children: [
-                PreviewItem(name: "子項目 1-2-1", children: nil),
-                PreviewItem(name: "子項目 1-2-2", children: nil),
-            ]),
-        ]),
-        PreviewItem(name: "群組 2", children: [
-            PreviewItem(name: "項目 2-1", children: nil),
-            PreviewItem(name: "項目 2-2", children: nil),
-        ]),
-        PreviewItem(name: "項目 3", children: nil),
-    ]
+  @Previewable var previewData: [PreviewItem] = [
+    PreviewItem(name: "群組 1", children: [
+      PreviewItem(name: "項目 1-1", children: nil),
+      PreviewItem(name: "項目 1-2", children: [
+        PreviewItem(name: "子項目 1-2-1", children: nil),
+        PreviewItem(name: "子項目 1-2-2", children: nil),
+      ]),
+    ]),
+    PreviewItem(name: "群組 2", children: [
+      PreviewItem(name: "項目 2-1", children: nil),
+      PreviewItem(name: "項目 2-2", children: nil),
+    ]),
+    PreviewItem(name: "項目 3", children: nil),
+  ]
 
-    // 示例視圖預覽
-    OutlineGroupViewExample.DemoView()
+  // 示例視圖預覽
+  OutlineGroupViewExample.DemoView()
 }
