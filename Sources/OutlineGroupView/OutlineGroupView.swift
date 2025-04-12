@@ -382,30 +382,3 @@ extension NSPasteboard.PasteboardType {
     static let data = NSPasteboard.PasteboardType("com.outlinegroupview.item")
 }
 
-// MARK: - Preview
-
-struct PreviewItem: Identifiable {
-    let id = UUID()
-    let name: String
-    var children: [PreviewItem]?
-}
-
-#Preview {
-    @Previewable var previewData: [PreviewItem] = [
-        PreviewItem(name: "群組 1", children: [
-            PreviewItem(name: "項目 1-1", children: nil),
-            PreviewItem(name: "項目 1-2", children: [
-                PreviewItem(name: "子項目 1-2-1", children: nil),
-                PreviewItem(name: "子項目 1-2-2", children: nil),
-            ]),
-        ]),
-        PreviewItem(name: "群組 2", children: [
-            PreviewItem(name: "項目 2-1", children: nil),
-            PreviewItem(name: "項目 2-2", children: nil),
-        ]),
-        PreviewItem(name: "項目 3", children: nil),
-    ]
-
-    // 示例視圖預覽
-    OutlineGroupViewExample.DemoView()
-}
