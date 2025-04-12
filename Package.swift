@@ -5,11 +5,13 @@ import PackageDescription
 
 let package = Package(
     name: "OutlineGroupView",
+    platforms: [.macOS(.v15)],
     products: [
         // Products define the executables and libraries a package produces, making them visible to other packages.
         .library(
             name: "OutlineGroupView",
-            targets: ["OutlineGroupView"]),
+            targets: ["OutlineGroupView"]
+        ),
     ],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
