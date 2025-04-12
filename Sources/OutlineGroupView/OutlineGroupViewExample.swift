@@ -84,16 +84,39 @@ enum OutlineGroupViewExample {
           },
           performDrop: { source, destination, index in
             // 執行拖放並更新數據模型
-            if let updatedItems = performDragDrop(
-              items: items,
-              source: source,
-              destination: destination,
-              index: index
-            ) {
-              items = updatedItems
-              lastDragOperation = "將「\(source.name)」移動到\(destination == nil ? "根層級" : "「\(destination!.name)」")的索引 \(index)"
-              return true
+
+            // 檢查是否為多選拖放
+            let isMultiSelect = selectedItemIds.contains(source.id) && selectedItemIds.count > 1
+
+            if isMultiSelect {
+              // 處理多選拖放
+              if let updatedItems = performMultiDragDrop(
+                items: items,
+                sourceIds: selectedItemIds,
+                draggedItem: source,
+                destination: destination,
+                index: index
+              ) {
+                items = updatedItems
+                let selectedItemsStr = findItemsByIds(selectedItemIds, in: items)
+                  .map { $0.name }.joined(separator: "、")
+                lastDragOperation = "將多個項目「\(selectedItemsStr)」移動到\(destination == nil ? "根層級" : "「\(destination!.name)」")的索引 \(index)"
+                return true
+              }
+            } else {
+              // 處理單選拖放
+              if let updatedItems = performDragDrop(
+                items: items,
+                source: source,
+                destination: destination,
+                index: index
+              ) {
+                items = updatedItems
+                lastDragOperation = "將「\(source.name)」移動到\(destination == nil ? "根層級" : "「\(destination!.name)」")的索引 \(index)"
+                return true
+              }
             }
+
             return false
           }
         ))
@@ -113,20 +136,134 @@ enum OutlineGroupViewExample {
 
         Text(lastDragOperation)
           .font(.callout)
+          .lineLimit(2)
           .padding(.horizontal)
           .padding(.top, 4)
 
         Text(selectionInfo)
           .font(.callout)
+          .lineLimit(2)
           .padding(.horizontal)
           .padding(.bottom, 4)
 
-        Text("提示：按住Command鍵可選擇多個項目")
+        Text("提示：按住Command鍵可選擇多個項目並一起拖放")
           .font(.caption)
           .foregroundColor(.secondary)
           .padding(.bottom)
       }
       .frame(width: 400)
+    }
+
+    /// 根據ID查找多個項目
+    /// - Parameters:
+    ///   - ids: 要查找的項目ID集合
+    ///   - items: 數據源
+    /// - Returns: 找到的項目數組
+    private func findItemsByIds(_ ids: Set<TreeItem.ID>, in items: [TreeItem]) -> [TreeItem] {
+      var result: [TreeItem] = []
+
+      // 遞歸函數
+      func findItems(in items: [TreeItem]) {
+        for item in items {
+          if ids.contains(item.id) {
+            result.append(item)
+          }
+
+          if let children = item.children {
+            findItems(in: children)
+          }
+        }
+      }
+
+      findItems(in: items)
+      return result
+    }
+
+    /// 執行多選拖放操作
+    /// - Parameters:
+    ///   - items: 當前數據
+    ///   - sourceIds: 所有選中項目的ID集合
+    ///   - draggedItem: 實際被拖動的項目
+    ///   - destination: 目標項目
+    ///   - index: 目標索引
+    /// - Returns: 更新後的數據
+    private func performMultiDragDrop(
+      items: [TreeItem],
+      sourceIds: Set<TreeItem.ID>,
+      draggedItem _: TreeItem,
+      destination: TreeItem?,
+      index: Int
+    ) -> [TreeItem]? {
+      // 創建數據副本
+      var newItems = items
+
+      // 找出所有需要移動的項目
+      let itemsToMove = findItemsByIds(sourceIds, in: items)
+
+      // 排序項目：確保保持樹中的相對順序
+      let sortedItemsToMove = sortItemsByTreeOrder(itemsToMove, in: items)
+
+      // 步驟1: 從樹中刪除所有項目
+      for item in sortedItemsToMove {
+        if !removeItemFromTree(source: item, items: &newItems) {
+          return nil
+        }
+      }
+
+      // 步驟2: 添加項目到目標位置
+      if let destination = destination {
+        // 添加到目標項目的子項目中
+        var currentIndex = index
+        for item in sortedItemsToMove {
+          if !addItemToNode(source: item, destinationNode: destination, atIndex: currentIndex, items: &newItems) {
+            return nil
+          }
+          // 更新索引，確保項目按原有順序放置
+          currentIndex += 1
+        }
+      } else {
+        // 添加到根層級
+        var currentIndex = index
+        for item in sortedItemsToMove {
+          if currentIndex >= 0 && currentIndex <= newItems.count {
+            newItems.insert(item, at: currentIndex)
+          } else {
+            newItems.append(item)
+          }
+          // 更新索引，確保項目按原有順序放置
+          currentIndex += 1
+        }
+      }
+
+      return newItems
+    }
+
+    /// 根據樹中的順序排序項目
+    /// - Parameters:
+    ///   - items: 要排序的項目
+    ///   - sourceItems: 原始數據源
+    /// - Returns: 排序後的項目
+    private func sortItemsByTreeOrder(_ items: [TreeItem], in sourceItems: [TreeItem]) -> [TreeItem] {
+      var result: [TreeItem] = []
+      var foundIds = Set<TreeItem.ID>()
+      let itemIds = Set(items.map { $0.id })
+
+      // 遞歸查找函數
+      func findInOrder(in currentItems: [TreeItem]) {
+        for item in currentItems {
+          if itemIds.contains(item.id) && !foundIds.contains(item.id) {
+            result.append(item)
+            foundIds.insert(item.id)
+          }
+
+          if let children = item.children {
+            findInOrder(in: children)
+          }
+        }
+      }
+
+      findInOrder(in: sourceItems)
+      return result
     }
 
     /// 執行拖放操作並更新數據模型
