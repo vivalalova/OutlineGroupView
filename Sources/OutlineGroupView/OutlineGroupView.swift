@@ -381,4 +381,3 @@ public enum SelectionMode {
 extension NSPasteboard.PasteboardType {
     static let data = NSPasteboard.PasteboardType("com.outlinegroupview.item")
 }
-
