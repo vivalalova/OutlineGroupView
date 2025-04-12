@@ -22,6 +22,15 @@ public struct OutlineGroupView<Item, RowContent>: NSViewRepresentable where Item
   /// 拖放配置
   private var dragDropConfig: DragDropConfiguration<Item>?
 
+  /// 選擇模式
+  private var selectionMode: SelectionMode = .none
+
+  /// 已選中項目的 ID 集合
+  private var selection: Binding<Set<Item.ID>>?
+
+  /// 選擇變化的回調
+  private var onSelectionChanged: (([Item]) -> Void)?
+
   // MARK: - 初始化方法
 
   /// 創建一個大綱視圖
@@ -46,6 +55,19 @@ public struct OutlineGroupView<Item, RowContent>: NSViewRepresentable where Item
     outlineView.columnAutoresizingStyle = .uniformColumnAutoresizingStyle
     outlineView.usesAutomaticRowHeights = true
     outlineView.headerView = nil
+
+    // 設置選擇模式
+    switch selectionMode {
+    case .none:
+      outlineView.allowsEmptySelection = true
+      outlineView.allowsMultipleSelection = false
+    case .single:
+      outlineView.allowsEmptySelection = false
+      outlineView.allowsMultipleSelection = false
+    case .multiple:
+      outlineView.allowsEmptySelection = true
+      outlineView.allowsMultipleSelection = true
+    }
 
     // 設置代理和數據源
     outlineView.delegate = context.coordinator
@@ -79,16 +101,48 @@ public struct OutlineGroupView<Item, RowContent>: NSViewRepresentable where Item
     context.coordinator.data = data
     context.coordinator.children = children
     context.coordinator.dragDropConfig = dragDropConfig
+    context.coordinator.selectionBinding = selection
+    context.coordinator.onSelectionChanged = onSelectionChanged
+
+    // 設置選擇模式
+    switch selectionMode {
+    case .none:
+      outlineView.allowsEmptySelection = true
+      outlineView.allowsMultipleSelection = false
+    case .single:
+      outlineView.allowsEmptySelection = false
+      outlineView.allowsMultipleSelection = false
+    case .multiple:
+      outlineView.allowsEmptySelection = true
+      outlineView.allowsMultipleSelection = true
+    }
 
     // 刷新數據
     outlineView.reloadData()
+
+    // 同步選中狀態
+    if let selection = selection {
+      let selectedIds = selection.wrappedValue
+      outlineView.deselectAll(nil)
+
+      // 查找並選中 ID 相符的項目
+      for rowIndex in 0 ..< outlineView.numberOfRows {
+        if let item = outlineView.item(atRow: rowIndex) as? Item,
+           selectedIds.contains(item.id)
+        {
+          // 使用非過時API
+          let rowIndexSet = IndexSet(integer: rowIndex)
+          outlineView.selectRowIndexes(rowIndexSet, byExtendingSelection: true)
+        }
+      }
+    }
 
     // 展開所有項目
     expandItems(nil, outlineView: outlineView, coordinator: context.coordinator)
   }
 
   public func makeCoordinator() -> Coordinator {
-    Coordinator(self, data: data, children: children)
+    Coordinator(self, data: data, children: children, selectionBinding: selection, onSelectionChanged: onSelectionChanged)
   }
 
   // MARK: - 輔助方法
@@ -114,6 +168,34 @@ public struct OutlineGroupView<Item, RowContent>: NSViewRepresentable where Item
     return view
   }
 
+  /// 設置選擇模式
+  /// - Parameter mode: 選擇模式 (無、單選、多選)
+  /// - Returns: 更新後的視圖
+  public func selectionMode(_ mode: SelectionMode) -> Self {
+    var view = self
+    view.selectionMode = mode
+    return view
+  }
+
+  /// 綁定選中項目
+  /// - Parameter selection: 選中項目 ID 的集合綁定
+  /// - Returns: 更新後的視圖
+  public func selection(_ selection: Binding<Set<Item.ID>>) -> Self {
+    var view = self
+    view.selection = selection
+    view.selectionMode = view.selectionMode != .none ? view.selectionMode : .multiple
+    return view
+  }
+
+  /// 設置選擇變化的回調
+  /// - Parameter action: 選擇變化時調用的閉包，參數是選中的項目數組
+  /// - Returns: 更新後的視圖
+  public func onSelectionChanged(_ action: @escaping ([Item]) -> Void) -> Self {
+    var view = self
+    view.onSelectionChanged = action
+    return view
+  }
+
   // MARK: - 協調器
 
   public class Coordinator: NSObject, NSOutlineViewDataSource, NSOutlineViewDelegate {
@@ -121,11 +203,20 @@ public struct OutlineGroupView<Item, RowContent>: NSViewRepresentable where Item
     var data: [Item]
     var children: KeyPath<Item, [Item]?>
     var dragDropConfig: DragDropConfiguration<Item>?
+    var selectionBinding: Binding<Set<Item.ID>>?
+    var onSelectionChanged: (([Item]) -> Void)?
 
-    init(_ parent: OutlineGroupView, data: [Item], children: KeyPath<Item, [Item]?>) {
+    init(_ parent: OutlineGroupView,
+         data: [Item],
+         children: KeyPath<Item, [Item]?>,
+         selectionBinding: Binding<Set<Item.ID>>? = nil,
+         onSelectionChanged: (([Item]) -> Void)? = nil)
+    {
       self.parent = parent
       self.data = data
       self.children = children
+      self.selectionBinding = selectionBinding
+      self.onSelectionChanged = onSelectionChanged
     }
 
     // MARK: - NSOutlineViewDataSource
@@ -161,6 +252,24 @@ public struct OutlineGroupView<Item, RowContent>: NSViewRepresentable where Item
       hostingView.translatesAutoresizingMaskIntoConstraints = false
 
       return hostingView
+    }
+
+    // MARK: - 選擇處理
+
+    public func outlineViewSelectionDidChange(_ notification: Notification) {
+      guard let outlineView = notification.object as? NSOutlineView else { return }
+
+      // 獲取所有選中的項目
+      let selectedItems = outlineView.selectedRowIndexes.compactMap { outlineView.item(atRow: $0) as? Item }
+
+      // 更新綁定的選擇狀態
+      if let selectionBinding = selectionBinding {
+        let selectedIds = Set(selectedItems.map { $0.id })
+        selectionBinding.wrappedValue = selectedIds
+      }
+
+      // 觸發選擇變化回調
+      onSelectionChanged?(selectedItems)
     }
 
     // MARK: - 拖放支援
@@ -299,6 +408,8 @@ extension NSPasteboard.PasteboardType {
     /// 展示使用方法的視圖
     public struct DemoView: View {
       @State private var items: [TreeItem]
+      @State private var selectedItemIds = Set<TreeItem.ID>()
+      @State private var selectionInfo = "尚未選擇項目"
 
       public init(items: [TreeItem]? = nil) {
         _items = State(initialValue: items ?? OutlineGroupViewExample.createSampleData())
@@ -315,7 +426,14 @@ extension NSPasteboard.PasteboardType {
               Image(systemName: item.children == nil ? "doc" : "folder")
                 .foregroundColor(item.children == nil ? .blue : .orange)
               Text(item.name)
-              Spacer()
+
+              if selectedItemIds.contains(item.id) {
+                Spacer()
+                Image(systemName: "checkmark")
+                  .foregroundColor(.green)
+              } else {
+                Spacer()
+              }
             }
             .padding(.vertical, 2)
           }
@@ -333,13 +451,28 @@ extension NSPasteboard.PasteboardType {
               return true
             }
           ))
+          .selectionMode(.multiple) // 設定為多選模式
+          .selection($selectedItemIds) // 綁定選中項目
+          .onSelectionChanged { selectedItems in
+            if selectedItems.isEmpty {
+              selectionInfo = "尚未選擇項目"
+            } else {
+              selectionInfo = "已選擇: " + selectedItems.map { $0.name }.joined(separator: ", ")
+            }
+          }
           .frame(height: 300)
           .padding()
 
-          Text("提示：在實際應用中，你需要實現 performDrop 來更新你的數據模型")
+          Divider()
+
+          Text(selectionInfo)
+            .font(.callout)
+            .padding()
+
+          Text("提示：按住Command鍵可選擇多個項目")
             .font(.caption)
             .foregroundColor(.secondary)
-            .padding()
+            .padding(.bottom)
         }
         .frame(width: 400)
       }
@@ -386,3 +519,15 @@ extension NSPasteboard.PasteboardType {
     ]
   }
 #endif
+
+// MARK: - 選擇模式
+
+/// 選擇模式定義
+public enum SelectionMode {
+  /// 不允許選擇
+  case none
+  /// 單選模式
+  case single
+  /// 多選模式
+  case multiple
+}
