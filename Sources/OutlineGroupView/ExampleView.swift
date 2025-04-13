@@ -1,5 +1,5 @@
 //
-//  File.swift
+//  ExampleView.swift
 //  OutlineGroupView
 //
 //  Created by lova on 2025/4/13.
@@ -24,7 +24,7 @@ struct FileItem: SidebarItem {
 }
 
 // 顯示不同項目類型的預覽
-#Preview(traits: .fixedLayout(width: 300, height: 500)) {
+#Preview(traits: .fixedLayout(width: 300, height: 800)) {
     @Previewable @State var folders: [FolderItem] = [
         FolderItem(name: "專案資料夾", children: [
             FolderItem(name: "源碼", children: [
@@ -64,7 +64,27 @@ struct FileItem: SidebarItem {
     @Previewable @State var selectedFolders: [FolderItem] = []
 
     // 示例視圖預覽
-    VStack {
-        SideBarContentView(items: $folders, selectedItems: $selectedFolders)
+
+    // 使用自定義 rowContent
+    SideBarContentView(items: $folders, selectedItems: $selectedFolders) { item in
+        HStack {
+            // 使用不同的圖標和顏色
+            Image(systemName: item.children == nil ? "doc.text" : "folder.fill")
+                .foregroundColor(item.children == nil ? .green : .purple)
+
+            VStack(alignment: .leading) {
+                Text(item.name)
+                    .font(.headline)
+
+                if item.children != nil {
+                    Text("包含 \(item.children?.count ?? 0) 個項目")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+
+            Spacer()
+        }
+        .padding(.vertical, 2)
     }
 }
