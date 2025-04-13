@@ -8,8 +8,8 @@
 import SwiftUI
 
 public protocol SidebarItem: Hashable, Identifiable {
-  /// 實作用let
-  var id: UUID { get }
-  var name: String { get }
-  var children: [Self]? { get set }
+    /// 實作用let
+    var id: UUID { get }
+    var name: String { get }
+    var children: [Self]? { get set }
 }

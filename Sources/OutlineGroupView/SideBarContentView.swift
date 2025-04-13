@@ -71,6 +71,7 @@ public struct SideBarContentView<Item: SidebarItem>: View {
                     // 處理多選拖放
                     if let updatedItems = performMultiDragDrop(items: items, selectedItems: selectedItems, draggedItem: source, destination: destination, index: index) {
                         items = updatedItems
+                        selectedItems = []
                         return true
                     }
                 }
@@ -79,6 +80,7 @@ public struct SideBarContentView<Item: SidebarItem>: View {
                     // 直接处理单个项拖放，不考虑是否被选中
                     if let updatedItems = performDragDrop(items: items, source: source, destination: destination, index: index) {
                         items = updatedItems
+                        selectedItems = []
                         return true
                     }
                 }
