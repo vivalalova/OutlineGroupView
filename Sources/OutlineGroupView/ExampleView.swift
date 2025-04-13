@@ -71,7 +71,7 @@ struct FileItem: SidebarItem {
             // 使用不同的圖標和顏色
             Image(systemName: item.children == nil ? "doc.text" : "folder.fill")
                 .foregroundColor(item.children == nil ? .green : .purple)
-
+                .font(.title2)
             VStack(alignment: .leading) {
                 Text(item.name)
                     .font(.headline)
@@ -82,8 +82,6 @@ struct FileItem: SidebarItem {
                         .foregroundColor(.secondary)
                 }
             }
-
-            Spacer()
         }
         .padding(.vertical, 2)
     }
