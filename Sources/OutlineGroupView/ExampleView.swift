@@ -7,27 +7,13 @@
 
 import SwiftUI
 
-// MARK: - Preview
+// MARK: - Preview1
 
 /// 資料夾項目
-public struct FolderItem: SidebarItem {
-    public let id = UUID()
-    public var name: String
-    public var children: [FolderItem]?
-}
-
-/// 檔案項目
-public struct FileItem: SidebarItem {
-    public let id = UUID()
-    public var name: String
-    public var children: [FileItem]? = nil // 檔案通常沒有子項
-}
-
-/// 樹狀結構的數據模型 (保留以相容現有代碼)
-public struct TreeItem: SidebarItem {
-    public let id = UUID()
-    public var name: String
-    public var children: [TreeItem]?
+struct FolderItem: SidebarItem {
+    let id = UUID()
+    var name: String
+    var children: [FolderItem]?
 }
 
 #Preview(traits: .fixedLayout(width: 300, height: 500)) {
@@ -65,6 +51,22 @@ public struct TreeItem: SidebarItem {
     VStack {
         SideBarContentView(items: $previewData, selectedItems: $selectedItems)
     }
+}
+
+// MARK: - Preview2
+
+/// 檔案項目
+struct FileItem: SidebarItem {
+    let id = UUID()
+    var name: String
+    var children: [FileItem]? = nil // 檔案通常沒有子項
+}
+
+/// 樹狀結構的數據模型 (保留以相容現有代碼)
+struct TreeItem: SidebarItem {
+    let id = UUID()
+    var name: String
+    var children: [TreeItem]?
 }
 
 // 顯示不同項目類型的預覽
